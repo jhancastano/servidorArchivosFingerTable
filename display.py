@@ -8,7 +8,7 @@ import json
 def main():
 	context = zmq.Context()
 	socket = context.socket(zmq.ROUTER)
-	socket.bind("tcp://*:4444")
+	socket.bind("tcp://*:3333")
 	while True:
 		print('servidor activo')
 		sender, destino , msg = socket.recv_multipart()

@@ -6,9 +6,9 @@ import json
 
 def printD(msg, identity):
 	context = zmq.Context()
-	sock = context.socket(zmq.DEALER)
-	sock.connect('tcp://localhost:4444')
-	sock.send_multipart([identity,msg])
+	socketD = context.socket(zmq.DEALER)
+	socketD.connect('tcp://localhost:3333')
+	socketD.send_multipart([identity,msg])
 
 def hash(idnodo):
 	objetohash = hashlib.sha1(idnodo.encode('utf8'))
@@ -29,10 +29,26 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 		sock = context.socket(zmq.DEALER)
 		sock.identity = nodoID.encode('utf8')
 		sock.connect(nodosConectados['Sucesor']['name'])
+		nodosConectados.update({'operacion':'iniciar'})
 		msg = json.dumps(nodosConectados)
 		printD(msg.encode('utf8'),nodoID.encode('utf8'))
-		sockrouter = context.socket(zmq.ROUTER)
-		sockrouter.bind("tcp://*:"+sys.argv[3])
+		
+
+		contextR = zmq.Context()
+		sockrouter = contextR.socket(zmq.ROUTER)
+		sockrouter.bind("tcp://*:"+sys.argv[3]) 
+		
+		sock.send_multipart([nodoID.encode('utf8'),msg.encode('utf8')])
+		
+		while(True) :
+			print('Nodo  '+nodoID+' : activo')
+			sender, destino , msg = sockrouter.recv_multipart()
+			mensaje_json = json.loads(msg)
+			print(mensaje_json)
+
+			
+
+
 	else:
 		print('se ejecuta con 6 argv')
 
