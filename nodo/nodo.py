@@ -3,6 +3,7 @@ import hashlib
 import os
 import sys
 import json
+import time
 
 def printD(msg, identity):
 	context = zmq.Context()
@@ -16,35 +17,60 @@ def hash(idnodo):
 	print(cadena)
 	return cadena
 
-def changeSocket(socket,nodo,conexion):
-	pass
+def iniciando(nodosConectados):
+	if (nodosConectados['Sucesor']['id']=='null' and nodosConectados['Predecesor']['id']=='null'and nodosConectados['Predecesor']['name']=='null'):
+		return True
+	else:
+		return False
 
+def emptyPre(mensaje_json):
+	if(mensaje_json['Predecesor']['id']=='null' and mensaje_json['Predecesor']['name']=='null'):
+		return True
+	else:
+		return False
 
 def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto sucesor
 	if(len(sys.argv)==6):
-		print(sys.argv[1])
-		nodoID = hash(sys.argv[1])
-		nodosConectados = {'Sucesor':{'id':'null','name': 'tcp://'+sys.argv[4]+':'+sys.argv[5]} ,'Predecesor':{'id':'null','name':'null'}}
+		
+		nodoID = sys.argv[1]
+		iPnodo = sys.argv[2]
+		Pnodo = sys.argv[3]
+		nodoName = 'tcp://'+iPnodo+':' + Pnodo
+		sucesorName = 'tcp://'+sys.argv[4]+':'+sys.argv[5]
+
+		nodosConectados = {'Sucesor':{'id':'null','name': sucesorName} ,'Predecesor':{'id':'null','name':'null'}}
 		context = zmq.Context()
 		sock = context.socket(zmq.DEALER)
 		sock.identity = nodoID.encode('utf8')
 		sock.connect(nodosConectados['Sucesor']['name'])
 		nodosConectados.update({'operacion':'iniciar'})
 		msg = json.dumps(nodosConectados)
-		printD(msg.encode('utf8'),nodoID.encode('utf8'))
-		
-
 		contextR = zmq.Context()
 		sockrouter = contextR.socket(zmq.ROUTER)
-		sockrouter.bind("tcp://*:"+sys.argv[3]) 
-		
+		sockrouter.bind("tcp://*:"+Pnodo) 
 		sock.send_multipart([nodoID.encode('utf8'),msg.encode('utf8')])
-		
+		#print('Nodo  '+nodoID+' : activo')
 		while(True) :
-			print('Nodo  '+nodoID+' : activo')
 			sender, destino , msg = sockrouter.recv_multipart()
 			mensaje_json = json.loads(msg)
-			print(mensaje_json)
+			if(mensaje_json['operacion']=='iniciar'):
+				print(iniciando(nodosConectados))
+				if(iniciando(nodosConectados) and emptyPre(mensaje_json)):
+					print('holaaaaaaaa')
+					mensaje_json['Predecesor'].update({'id':nodoID,'name':nodoName})
+					mensaje_json['Sucesor'].update({'id':nodoID})
+					mensaje_json.update({'operacion':'registrar'})
+					msg = json.dumps(mensaje_json)
+					print(msg)
+					sock.send_multipart([sender,msg.encode('utf8')])
+				
+
+			elif(mensaje_json['operacion']=='registrar'):
+				del mensaje_json['operacion']
+				nodosConectados.update(mensaje_json)
+				print('registrar')
+				print(mensaje_json)
+				print('------------')
 
 			
 
