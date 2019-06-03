@@ -18,13 +18,21 @@ def hash(idnodo):
 	return cadena
 
 def iniciando(nodosConectados):
-	if (nodosConectados['Sucesor']['id']=='null' and nodosConectados['Predecesor']['id']=='null'and nodosConectados['Predecesor']['name']=='null'):
+	if (nodosConectados['Sucesor']['id']=='null' and 
+		nodosConectados['Predecesor']['id']=='null'and 
+		nodosConectados['Predecesor']['name']=='null'):
 		return True
 	else:
 		return False
 
 def emptyPre(mensaje_json):
-	if(mensaje_json['Predecesor']['id']=='null' and mensaje_json['Predecesor']['name']=='null'):
+	if(mensaje_json['Predecesor']['id']=='null' and 
+		mensaje_json['Predecesor']['name']=='null'):
+		return True
+	else:
+		return False
+def emptySuc(mensaje_json):
+	if(mensaje_json['Sucesor']['id']=='null'):
 		return True
 	else:
 		return False
@@ -37,6 +45,7 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 		Pnodo = sys.argv[3]
 		nodoName = 'tcp://'+iPnodo+':' + Pnodo
 		sucesorName = 'tcp://'+sys.argv[4]+':'+sys.argv[5]
+		miID = {'id':nodoID,'name':nodoName}
 
 		nodosConectados = {'Sucesor':{'id':'null','name': sucesorName} ,'Predecesor':{'id':'null','name':'null'}}
 		context = zmq.Context()
@@ -50,29 +59,46 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 		sockrouter.bind("tcp://*:"+Pnodo) 
 		sock.send_multipart([nodoID.encode('utf8'),msg.encode('utf8')])
 		#print('Nodo  '+nodoID+' : activo')
+		poller = zmq.Poller()
+		poller.register(sys.stdin, zmq.POLLIN)
+		poller.register(sock, zmq.POLLIN)
+		poller.register(sockrouter,zmq.POLLIN)
 		while(True) :
-			sender, destino , msg = sockrouter.recv_multipart()
-			mensaje_json = json.loads(msg)
-			if(mensaje_json['operacion']=='iniciar'):
-				print(iniciando(nodosConectados))
-				if(iniciando(nodosConectados) and emptyPre(mensaje_json)):
-					print('holaaaaaaaa')
-					mensaje_json['Predecesor'].update({'id':nodoID,'name':nodoName})
-					mensaje_json['Sucesor'].update({'id':nodoID})
-					mensaje_json.update({'operacion':'registrar'})
-					msg = json.dumps(mensaje_json)
-					print(msg)
-					sock.send_multipart([sender,msg.encode('utf8')])
-				
-
-			elif(mensaje_json['operacion']=='registrar'):
-				del mensaje_json['operacion']
-				nodosConectados.update(mensaje_json)
-				print('registrar')
-				print(mensaje_json)
-				print('------------')
-
-			
+			socks = dict(poller.poll())
+			if sockrouter in socks:
+				sender, destino , msg = sockrouter.recv_multipart()
+				mensaje_json = json.loads(msg)
+				if(mensaje_json['operacion']=='iniciar'):
+					print(iniciando(nodosConectados))
+					if(iniciando(nodosConectados) and emptyPre(mensaje_json)):
+						print('holaaaaaaaa')
+						mensaje_json['Predecesor'].update({'id':nodoID,'name':nodoName})
+						mensaje_json['Sucesor'].update({'id':nodoID})
+						mensaje_json.update({'operacion':'registrar'})
+						msg = json.dumps(mensaje_json)
+						print(msg)
+						sock.send_multipart([sender,msg.encode('utf8')])
+					elif(emptySuc(mensaje_json)):
+						print('no tengo sucesor')					
+						mensaje_json.update(nodosConectados)
+						mensaje_json.update()
+						mensaje_json.update({'operacion':'buscando'})
+						mensaje_json.update({'miID':miID})
+						msg = json.dumps(mensaje_json)
+						sockrouter.send_multipart([sender,sender,msg.encode('utf8')])
+						print('enviado a:')
+						print(sender)
+				elif(mensaje_json['operacion']=='buscando'):
+					print('buscando')			
+				elif(mensaje_json['operacion']=='registrar'):
+					del mensaje_json['operacion']
+					nodosConectados.update(mensaje_json)
+					print('registrar')
+					print('------------')
+			elif sock in socks:
+				print('hay un socket')
+				sender, msg = sock.recv_multipart()
+				print(msg)
 
 
 	else:
