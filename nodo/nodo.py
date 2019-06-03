@@ -47,6 +47,9 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 		sucesorName = 'tcp://'+sys.argv[4]+':'+sys.argv[5]
 		miID = {'id':nodoID,'name':nodoName}
 
+
+		listanodos = []
+
 		nodosConectados = {'Sucesor':{'id':'null','name': sucesorName} ,'Predecesor':{'id':'null','name':'null'}}
 		context = zmq.Context()
 		sock = context.socket(zmq.DEALER)
@@ -98,7 +101,21 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 			elif sock in socks:
 				print('hay un socket')
 				sender, msg = sock.recv_multipart()
-				print(msg)
+				mensaje_json = json.loads(msg)
+				Sucesor = int(mensaje_json['Sucesor']['id'])
+				Predecesor = int(mensaje_json['Predecesor']['id'])
+				NodoConect = int(mensaje_json['miID']['id'])
+				if(int(nodoID)>Sucesor and int(nodoID)>NodoConect and NodoConect > Sucesor ): #para comparacion de hash quitar enteros
+					print('soy el ultimo')
+				elif(int(nodoID) < Sucesor and int(nodoID) > NodoConect):
+					print('estoy en medio')
+				else:
+					print('siga buscando')
+				print(int(nodoID) < Sucesor)
+				print(nodoID)
+				print(Sucesor)
+				print(Predecesor)
+				print(NodoConect)
 			elif sys.stdin.fileno() in socks:
 				print("?")
 				command = input()
