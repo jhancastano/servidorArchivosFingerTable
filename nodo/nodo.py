@@ -99,6 +99,10 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 				print('hay un socket')
 				sender, msg = sock.recv_multipart()
 				print(msg)
+			elif sys.stdin.fileno() in socks:
+				print("?")
+				command = input()
+				print(nodosConectados)
 
 
 	else:
