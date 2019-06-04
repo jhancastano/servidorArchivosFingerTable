@@ -91,6 +91,13 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 						print('enviado a:')
 						print(sender)
 				elif(mensaje_json['operacion']=='buscando'):
+					mensaje_json.update(nodosConectados)
+					mensaje_json.update({'operacion':'buscando'})
+					mensaje_json.update({'miID':miID})
+					msg = json.dumps(mensaje_json)
+					sockrouter.send_multipart([sender,sender,msg.encode('utf8')])
+					print('enviado a:')
+					print(sender)
 					print('buscando')			
 				elif(mensaje_json['operacion']=='registrar'):
 					del mensaje_json['operacion']
@@ -100,59 +107,70 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 				elif(mensaje_json['operacion']=='actSucesor'):
 					del mensaje_json['operacion']
 					nodosConectados['Sucesor'].update(mensaje_json)
+					print('actualize Sucesor')
 				elif(mensaje_json['operacion']=='actPredecesor'):
 					del mensaje_json['operacion']
 					nodosConectados['Predecesor'].update(mensaje_json)
+					print('actualize Predecesor')
 			elif sock in socks:
 				print('hay un socket')
+
 				sender, msg = sock.recv_multipart()
 				mensaje_json = json.loads(msg)
-				Sucesor = int(mensaje_json['Sucesor']['id'])
-				Predecesor = int(mensaje_json['Predecesor']['id'])
-				NodoConect = int(mensaje_json['miID']['id'])
-				if(int(nodoID)>Sucesor and int(nodoID)>NodoConect and NodoConect > Sucesor ): #para comparacion de hash quitar enteros
-					print('soy el ultimo')
-					nodosConectados['Sucesor'].update(mensaje_json['Sucesor'])
-					nodosConectados['Predecesor'].update(mensaje_json['miID'])
-					msg = miID
-					msg2 = miID
-					msg.update({'operacion':'actPredecesor'})
-					msg = json.dumps(msg)
-					msg2.update({'operacion':'actSucesor'})
-					msg2 = json.dumps(msg2)
-					print('+++++++++')
-					print(msg2)
-					print('*********')
-					sock.connect(mensaje_json['Sucesor']['name'])
-					sock.send_multipart([nodoID.encode('utf8'),msg.encode('utf8')])
-					
-					sock.connect(mensaje_json['Predecesor']['name'])
-					sock.send_multipart([nodoID.encode('utf8'),msg2.encode('utf8')])
+				print(msg)
+				if(mensaje_json['operacion']=='buscando'):
+					print('entro al if buscar')
+					Sucesor = int(mensaje_json['Sucesor']['id'])
+					Predecesor = int(mensaje_json['Predecesor']['id'])
+					NodoConect = int(mensaje_json['miID']['id'])
+					if(int(nodoID)>Sucesor and int(nodoID)>Predecesor and int(nodoID)>NodoConect and NodoConect > Sucesor): #para comparacion de hash quitar enteros
+						print('soy el ultimo')
+						nodosConectados['Sucesor'].update(mensaje_json['Sucesor'])
+						nodosConectados['Predecesor'].update(mensaje_json['miID'])
+						print(nodosConectados)
+						msg = miID
+						msg2 = miID
+						msg.update({'operacion':'actPredecesor'})
+						msg = json.dumps(msg)
+						msg2.update({'operacion':'actSucesor'})
+						msg2 = json.dumps(msg2)
+						#sock.disconnect(nodosConectados['Sucesor']['name'])#desconectando
+						sock.connect(nodosConectados['Sucesor']['name'])
+						sock.send_multipart([nodoID.encode('utf8'),msg.encode('utf8')])
+						sock.disconnect(nodosConectados['Sucesor']['name'])#desconectando
+						#------------------------------------------------------
+						sock.connect(nodosConectados['Predecesor']['name'])
+						sock.send_multipart([nodoID.encode('utf8'),msg2.encode('utf8')])
+						sock.disconnect(nodosConectados['Predecesor']['name'])#desconectando
+						#------------------------------------------------------
 
+					elif(int(nodoID) > Predecesor and int(nodoID) < NodoConect):
+						nodosConectados['Sucesor'].update(mensaje_json['miID'])
+						nodosConectados['Predecesor'].update(mensaje_json['Predecesor'])
+						print(mensaje_json['miID'])
+						print(nodosConectados)
+						msg = miID
+						msg2 = miID
+						msg.update({'operacion':'actPredecesor'})
+						msg = json.dumps(msg)
+						msg2.update({'operacion':'actSucesor'})
+						msg2 = json.dumps(msg2)
+						#sock.disconnect(nodosConectados['Sucesor']['name'])#desconectando
+						sock.connect(nodosConectados['Sucesor']['name'])
+						sock.send_multipart([nodoID.encode('utf8'),msg.encode('utf8')])
+						sock.disconnect(nodosConectados['Sucesor']['name'])#desconectando
+						sock.connect(nodosConectados['Predecesor']['name'])
+						sock.send_multipart([nodoID.encode('utf8'),msg2.encode('utf8')])
+						sock.disconnect(nodosConectados['Predecesor']['name'])
 
-				elif(int(nodoID) < Sucesor and int(nodoID) > NodoConect):
-					nodosConectados['Sucesor'].update(mensaje_json['Sucesor'])
-					nodosConectados['Predecesor'].update(mensaje_json['miID'])
-
-					msg = miID
-					msg2 = miID
-					msg.update({'operacion':'actPredecesor'})
-					msg = json.dumps(msg)
-					msg2.update({'operacion':'actSucesor'})
-					msg2 = json.dumps(msg2)
-					sock.connect(mensaje_json['Sucesor']['name'])
-					sock.send_multipart([nodoID.encode('utf8'),msg.encode('utf8')])
-
-					sock.connect(mensaje_json['Predecesor']['name'])
-					sock.send_multipart([nodoID.encode('utf8'),msg2.encode('utf8')])
-
-					print('estoy en medio')
-				else:
-					sock.connect(mensaje_json['Sucesor']['name'])
-					nodosConectados.update({'operacion':'iniciar'})
-					msg = json.dumps(nodosConectados)
-					print('siga buscando')
-					sock.send_multipart([nodoID.encode('utf8'),msg.encode('utf8')])
+						print('estoy en medio')
+					else:
+						sock.connect(mensaje_json['Sucesor']['name'])
+						nodosConectados.update({'operacion':'buscando'})
+						msg = json.dumps(nodosConectados)
+						print('siga buscando')
+						sock.send_multipart([nodoID.encode('utf8'),msg.encode('utf8')])
+						#sock.disconnect(mensaje_json['Sucesor']['name'])#desconectando
 			elif sys.stdin.fileno() in socks:
 				print("?")
 				command = input()
