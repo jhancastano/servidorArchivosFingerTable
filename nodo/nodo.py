@@ -31,6 +31,8 @@ def emptyPre(mensaje_json):
 		return True
 	else:
 		return False
+
+
 def emptySuc(mensaje_json):
 	if(mensaje_json['Sucesor']['id']=='null'):
 		return True
@@ -68,7 +70,8 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 		poller.register(sockrouter,zmq.POLLIN)
 		while(True) :
 			socks = dict(poller.poll())
-			if sockrouter in socks:
+			#router--------------------------------
+			if sockrouter in socks: # responde peticiones
 				sender, destino , msg = sockrouter.recv_multipart()
 				mensaje_json = json.loads(msg)
 				if(mensaje_json['operacion']=='iniciar'):
@@ -112,7 +115,9 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 					del mensaje_json['operacion']
 					nodosConectados['Predecesor'].update(mensaje_json)
 					print('actualize Predecesor')
-			elif sock in socks:
+			#fin router-------------------------------------------
+			elif sock in socks: #envia peticiones
+			#----------enganchar server------------------------------------
 				print('hay un socket')
 
 				sender, msg = sock.recv_multipart()
@@ -158,8 +163,6 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 					elif(int(nodoID) > Predecesor and int(nodoID) < NodoConect):
 						nodosConectados['Sucesor'].update(mensaje_json['miID'])
 						nodosConectados['Predecesor'].update(mensaje_json['Predecesor'])
-						print(mensaje_json['miID'])
-						print(nodosConectados)
 						msg = miID
 						msg2 = miID
 						msg.update({'operacion':'actPredecesor'})
@@ -187,17 +190,22 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 						print('siga buscando')
 						sock.send_multipart([nodoID.encode('utf8'),msg.encode('utf8')])
 						#sock.disconnect(mensaje_json['Sucesor']['name'])#desconectando
+			#fin------- enganchar server  ---------------------------------
 			elif sys.stdin.fileno() in socks:
+
 				print("?")
 				command = input()
+				print('-----------------------------')
 				print('nodo id')
 				print(miID)
+				print('-----------------------------')
+				print('-----------------------------')
 				print('nodo Predecesor')
 				print(nodosConectados['Predecesor'])
-
+				print('-----------------------------')
 				print('nodo sucesor')
 				print(nodosConectados['Sucesor'])
-
+				print('-----------------------------')
 
 	else:
 		print('se ejecuta con 6 argv')
