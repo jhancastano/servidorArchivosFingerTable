@@ -45,14 +45,15 @@ def canUpload(nodosConectados,miID,id):
 		print('soy el ultimo')
 	pass
 
-def actFingertable(fingertable,nodo):
-
-	pass
 
 def crearfingertable(fingertable,miID,sucesor):
+	print(miID)
+	print(sucesor)
 	nodoid = int(miID,16)
 	finger = {'nodo':hex(nodoid)[2:]}
-	nodoSucesor =int(sucesor,16)
+	nodoSucesor =int(sucesor['id'],16)
+	print(nodoSucesor)
+	print('----------')
 	for x in range(0,159):
 		nodo2 = nodoid + 2**x
 		if(nodo2<=nodoSucesor):
@@ -131,12 +132,13 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 				elif(mensaje_json['operacion']=='registrar'):
 					del mensaje_json['operacion']
 					nodosConectados.update(mensaje_json)
-					fingertable = crearfingertable(fingertable,miID['id'],nodosConectados['Sucesor']['id'])
+					fingertable = crearfingertable(fingertable,miID['id'],nodosConectados['Sucesor'])
 					print('registrar')
 					print('------------')
 				elif(mensaje_json['operacion']=='actSucesor'):
 					del mensaje_json['operacion']
 					nodosConectados['Sucesor'].update(mensaje_json)
+					fingertable.update(crearfingertable(fingertable,miID['id'],nodosConectados['Sucesor']))
 					print('actualize Sucesor')
 				elif(mensaje_json['operacion']=='actPredecesor'):
 					del mensaje_json['operacion']
@@ -202,6 +204,8 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 						print('--------------------')
 						print(nodosConectados['Predecesor']['name'])
 						print(msg2)
+						
+						fingertable.update(crearfingertable(fingertable,miID['id'],nodosConectados['Sucesor']))
 						#sock.disconnect(nodosConectados['Predecesor']['name'])#desconectando
 						#------------------------------------------------------
 
@@ -223,7 +227,7 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 						sock.connect(nodosConectados['Predecesor']['name'])
 						sock.send_multipart([nodoID.encode('utf8'),msg2.encode('utf8'),b'0'])
 						#sock.disconnect(nodosConectados['Predecesor']['name'])
-
+						fingertable.update(crearfingertable(fingertable,miID['id'],nodosConectados['Sucesor']))
 						print('estoy en medio')
 					else:
 						#print('estoy vuscando')
@@ -256,7 +260,9 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 					print('-----------------------------')
 				elif(command=='f'):
 					for x in fingertable:
-						print(x+':'+fingertable[x])
+						print(fingertable[x])
+				elif(command=='c'):
+					fingertable.update(crearfingertable(fingertable,miID['id'],nodosConectados['Sucesor']))
 	else:
 		print('se ejecuta con 6 argv')
 
