@@ -46,7 +46,7 @@ def emptySuc(mensaje_json):
 def positionNodo(nodosConectados,miID):
 	idsuc = nodosConectados['Sucesor']['id']
 	idpre = nodosConectados['Predecesor']['id']
-	if(miID['id']<idpre and idpre>idsuc):
+	if(miID['id']<idpre and idpre>=idsuc):
 		return 1#primero nodo
 	if(miID['id']>idpre and idpre>idsuc):
 		return 2#nodo en medio
@@ -171,6 +171,7 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 						msg = {}
 						msg.update(nodosConectados)
 						msg.update({'operacion':'verdadero'})
+						msg.update(miID)
 						msg = json.dumps(msg)
 						sockrouter.send_multipart([sender,sender,msg.encode('utf8'),b'0'])
 					else:
@@ -291,7 +292,7 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 					print('-----------------------------')
 				elif(command=='f'):
 					for x in fingertable:
-						print(fingertable[x])
+						print(x+json.dumps(fingertable[x]))
 				elif(command=='c'):
 					fingertable.update(crearfingertable(fingertable,miID['id'],nodosConectados['Sucesor']))
 	else:

@@ -49,7 +49,7 @@ def upload(msg,idcliente,nodoConectado):
 					mensaje = json.dumps(op)
 					socket.send_multipart([idcliente,mensaje.encode('utf8'),data])
 					os.remove(msg[name][x]['namePart'])
-					msg[name][x]['nodo'] =mensaje_json['name']
+					msg[name][x]['nodo'] = mensaje_json['name']
 	print('succesfull upload')
 
 
