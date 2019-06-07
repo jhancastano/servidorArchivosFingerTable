@@ -95,7 +95,7 @@ def download(msg,idcliente,nodoConectado):
 def hashearArchivo(FILE):
 	if(os.path.isfile(FILE)): 
 		SizeFile = os.stat(FILE).st_size
-		SizePart = 5*1024
+		SizePart = 20*1024*1024
 		diccionario = {}
 		DicPart = {}
 		FileComplete = hashlib.sha1()
