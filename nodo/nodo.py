@@ -57,12 +57,12 @@ def canUpload(nodosConectados,miID,idparte):
 	if(positionNodo(nodosConectados,miID)==1):
 		if(nodosConectados['Predecesor']['id']<idparte):
 			return True
-		elif(idparte<miID['id']):
+		elif(idparte<=miID['id']):
 			return True
 		else:
 			return False
 	elif(positionNodo(nodosConectados,miID)!=1):
-		if(nodosConectados['Predecesor']['id']<idparte and miID['id']>idparte):
+		if(nodosConectados['Predecesor']['id']<idparte and miID['id']>=idparte):
 			return True
 		else:
 			return False
@@ -85,14 +85,27 @@ def canDownload(nodosConectados,miID,idparte):
 
 def crearfingertable(fingertable,miID,sucesor):
 	nodoid = int(miID,16)
-	finger = {'nodo':hex(nodoid)[2:]}
+	finger = {}
 	nodoSucesor =int(sucesor['id'],16)
-	for x in range(0,159):
+	for x in range(160):
 		nodo2 = nodoid + 2**x
 		if(nodo2<=nodoSucesor):
-			finger.update({'nodo'+str(x):sucesor})
+			finger.update({str(x):sucesor})
 	return finger
-	pass
+
+
+def saltarfinger(fingertable,idparte):
+	if(len(fingertable)==0):
+		return -1
+	for x in fingertable:
+		if (fingertable[x]['id']>=idparte):
+			if(x=='0'):
+				return -1
+			else:
+				return fingertable[str(int(x)-1)]
+				
+
+
 
 def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto sucesor
 	if(len(sys.argv)==6):
@@ -177,6 +190,12 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 					else:
 						msg = {}
 						msg.update(nodosConectados)
+						if(saltarfinger(fingertable,mensaje_json['parte'])!=-1):
+							os.system('clear')
+							if (saltarfinger(fingertable,mensaje_json['parte'])==None):
+								pass
+							else:
+								msg['Sucesor']= saltarfinger(fingertable,mensaje_json['parte'])
 						msg.update({'operacion':'falso'})
 						msg.update(miID)
 						msg = json.dumps(msg)
@@ -197,6 +216,12 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 					else:
 						msg = {}
 						msg.update(nodosConectados)
+						if(saltarfinger(fingertable,mensaje_json['parte'])!=-1):
+							os.system('clear')
+							if (saltarfinger(fingertable,mensaje_json['parte'])==None):
+								pass
+							else:
+								msg['Sucesor']= saltarfinger(fingertable,mensaje_json['parte'])
 						msg.update({'operacion':'falso'})
 						msg.update(miID)
 						msg = json.dumps(msg)
@@ -291,10 +316,14 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 					print(nodosConectados['Sucesor'])
 					print('-----------------------------')
 				elif(command=='f'):
+					os.system('clear')
+					print('----------')
 					for x in fingertable:
 						print(x+json.dumps(fingertable[x]))
 				elif(command=='c'):
 					fingertable.update(crearfingertable(fingertable,miID['id'],nodosConectados['Sucesor']))
+				elif(command=='s'):
+					print(saltarfinger(fingertable,'1'))
 	else:
 		print('se ejecuta con 6 argv')
 
