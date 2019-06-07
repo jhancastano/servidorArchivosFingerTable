@@ -7,54 +7,95 @@ import time
 
 def joinFiles(msg,nombre):
 
-	with open(nombre+'.','wb') as file:
-		for x in msg['name']:
-			name = msg['name'][x]['namePart']
+	with open(nombre+'.dwn','wb') as file:
+		for x in msg:
+			name = msg[x]['namePart']
 			with open(name, 'rb') as f:
 				data = f.read()
 			os.remove(name)	
 			file.write(data)
 
-def subir(msg,identity,socket):
-	pass
 
-def upload(msg,identity,nodoConectado):
+def upload(msg,idcliente,nodoConectado):
+	print(idcliente)
 	context = zmq.Context()
 	socket = context.socket(zmq.DEALER)
-	socket.identity = identity
+	socket.identity = b'upload'
 	socket.connect(nodoConectado)
-
 	poller = zmq.Poller()	
 	poller.register(socket, zmq.POLLIN)
 	name = msg.keys()
 	for keys in name:
 		name= keys
-	for x in msg[name]:
-		print(msg[name][x])		
+	for x in msg[name]:		
 		op = {'operacion':'upload','parte':msg[name][x]['namePart']}
+		mensaje = json.dumps(op)
+		socket.send_multipart([idcliente,mensaje.encode('utf8'),b'0'])
 		while(msg[name][x]['nodo'] == 'null') :
 			socks = dict(poller.poll())
 			if socket in socks:
-				sender, msg, data = socket.recv_multipart()
-				mensaje_json = json.loads(msg)
+				sender, mensajeServidor, data = socket.recv_multipart()
+				mensaje_json = json.loads(mensajeServidor)
+				print(mensajeServidor)
 				operacion = mensaje_json['operacion']
-			
-			print(msg[name][x]['namePart'])
+				if(operacion=='falso'):
+					socket.disconnect(mensaje_json['name'])
+					socket.connect(mensaje_json['Sucesor']['name'])
+					socket.send_multipart([idcliente,mensaje.encode('utf8'),b'0'])
+				elif(operacion=='verdadero'):
+					with open(msg[name][x]['namePart'],'rb') as f:
+						data = f.read()
+					op = {'operacion':'subir','parte':msg[name][x]['namePart']}
+					mensaje = json.dumps(op)
+					socket.send_multipart([idcliente,mensaje.encode('utf8'),data])
+					os.remove(msg[name][x]['namePart'])
+					msg[name][x]['nodo'] =mensaje_json['name']
+	print('succesfull upload')
+
+
 	
-	print(identity)
-	pass
+
+def download(msg,idcliente,nodoConectado):
+	print(idcliente)
+	context = zmq.Context()
+	socket = context.socket(zmq.DEALER)
+	socket.identity = b'download'
+	socket.connect(nodoConectado)
+	poller = zmq.Poller()	
+	poller.register(socket, zmq.POLLIN)
+	name = msg.keys()
+	for keys in name:
+		name= keys
+	for x in msg[name]:		
+		op = {'operacion':'download','parte':msg[name][x]['namePart']}
+		mensaje = json.dumps(op)
+		socket.send_multipart([idcliente,mensaje.encode('utf8'),b'0'])
+		while(msg[name][x]['nodo'] == 'null') :
+			socks = dict(poller.poll())
+			if socket in socks:
+				sender, mensajeServidor, data = socket.recv_multipart()
+				mensaje_json = json.loads(mensajeServidor)
+				operacion = mensaje_json['operacion']
+				if(operacion=='falso'):
+					socket.disconnect(mensaje_json['name'])
+					socket.connect(mensaje_json['Sucesor']['name'])
+					socket.send_multipart([idcliente,mensaje.encode('utf8'),b'0'])
+				elif(operacion=='verdadero'):
+					with open(msg[name][x]['namePart'],'wb') as f:
+						f.write(data)
+					msg[name][x]['nodo'] = mensaje_json['name']
+
+	os.system('clear')
+	joinFiles(msg[name],name)
+	print('succesfull download')
 
 
 
-	
-
-def download(msg,identity):
-	pass	
 
 def hashearArchivo(FILE):
 	if(os.path.isfile(FILE)): 
 		SizeFile = os.stat(FILE).st_size
-		SizePart = 10*1024
+		SizePart = 20*1024*1024
 		diccionario = {}
 		DicPart = {}
 		FileComplete = hashlib.sha1()
@@ -71,11 +112,26 @@ def hashearArchivo(FILE):
 				i=i+1
 		shaprincipal =	FileComplete.hexdigest()	
 		diccionario.update({shaprincipal:DicPart})
+
+		with open(shaprincipal+'.p2p','wb') as file:
+			file.write(json.dumps(diccionario).encode('utf8'))
 		return diccionario
+
 	else:
 		print('archivo no existe en carpeta')
 		return -1
 
+def leerp2p(FILE):
+	if(os.path.isfile(FILE)):
+		with open(FILE, 'rb') as f:
+			data = f.read()
+		diccionario =json.loads(data)	
+		return diccionario
+	else:
+		print('no existe p2p')
+		return -1
+
+	
 
 def main():
 	if(len(sys.argv)==4):# 1arg=id, 2arg=ipnodo, 3arg=puertonodo
@@ -103,7 +159,6 @@ def main():
 				sender, msg, data = socket.recv_multipart()
 				mensaje_json = json.loads(msg)
 				operacion = mensaje_json['operacion']
-				print(msg)
 				if(operacion=='upload'):
 					print('upload')
 				elif(operacion=='download'):
@@ -117,24 +172,19 @@ def main():
 					if(hashearArchivo(msg)!=-1):
 						print('upload')
 						listaArchivos.update(hashearArchivo(msg))
-						upload(hashearArchivo(msg),identity)
-
-
-
-						msg1 = {}
-						msg1.update({'operacion':'upload'})
-						msg1 = json.dumps(msg1)
-						socket.send_multipart([identity,msg1.encode('utf8'),b'0'])
+						#socket.disconnect(nodoName)
+						upload(hashearArchivo(msg),identity,nodoName)
 					else:
 						print('no existe el archivo')
 
 				elif(op=='d'):
 					os.system('clear')
 					print('download')
-					msg = {}
-					msg.update({'operacion':'download'})
-					msg = json.dumps(msg)
-					socket.send_multipart([identity,msg.encode('utf8'),b'0'])
+					if(leerp2p(msg)!=-1):
+						print(leerp2p(msg))
+						download(leerp2p(msg),identity,nodoName)
+					else:
+						print('no existe p2p')
 				elif(op=='l'):
 					print(listaArchivos)
 				else:

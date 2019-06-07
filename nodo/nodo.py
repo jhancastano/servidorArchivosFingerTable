@@ -6,10 +6,19 @@ import json
 import time
 
 
+def cargarArchivo(namepart,data):
+	with open(namepart,'wb') as file:
+		file.write(data)
+
+def descargarArchivo(namepart):
+	with open(namepart,'rb') as file:
+		data = file.read()	
+	return data
+
+
 def hash(idnodo):
 	objetohash = hashlib.sha1(idnodo.encode('utf8'))
 	cadena = objetohash.hexdigest()	
-	print(cadena)
 	return cadena
 
 def iniciando(nodosConectados):
@@ -34,26 +43,50 @@ def emptySuc(mensaje_json):
 	else:
 		return False
 
-def canUpload(nodosConectados,miID,id):
+def positionNodo(nodosConectados,miID):
 	idsuc = nodosConectados['Sucesor']['id']
 	idpre = nodosConectados['Predecesor']['id']
-	if(miID<idpre and idpre>idsuc):
-		print('soy el primero')
-	if(miID>idpre and idpre>idsuc):
-		print('estoy en medio')
-	if(miID>idpre and idsuc>idpre):
-		print('soy el ultimo')
-	pass
+	if(miID['id']<idpre and idpre>idsuc):
+		return 1#primero nodo
+	if(miID['id']>idpre and idpre>idsuc):
+		return 2#nodo en medio
+	if(miID['id']>idpre and idsuc>idpre):
+		return 3# ultimo nodo
+
+def canUpload(nodosConectados,miID,idparte):
+	if(positionNodo(nodosConectados,miID)==1):
+		if(nodosConectados['Predecesor']['id']<idparte):
+			return True
+		elif(idparte<miID['id']):
+			return True
+		else:
+			return False
+	elif(positionNodo(nodosConectados,miID)!=1):
+		if(nodosConectados['Predecesor']['id']<idparte and miID['id']>idparte):
+			return True
+		else:
+			return False
+
+
+def canDownload(nodosConectados,miID,idparte):
+	if(positionNodo(nodosConectados,miID)==1):
+		if(nodosConectados['Predecesor']['id']<idparte):
+			return True
+		elif(idparte<miID['id']):
+			return True
+		else:
+			return False
+	elif(positionNodo(nodosConectados,miID)!=1):
+		if(nodosConectados['Predecesor']['id']<idparte and miID['id']>idparte):
+			return True
+		else:
+			return False
 
 
 def crearfingertable(fingertable,miID,sucesor):
-	print(miID)
-	print(sucesor)
 	nodoid = int(miID,16)
 	finger = {'nodo':hex(nodoid)[2:]}
 	nodoSucesor =int(sucesor['id'],16)
-	print(nodoSucesor)
-	print('----------')
 	for x in range(0,159):
 		nodo2 = nodoid + 2**x
 		if(nodo2<=nodoSucesor):
@@ -63,18 +96,13 @@ def crearfingertable(fingertable,miID,sucesor):
 
 def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto sucesor
 	if(len(sys.argv)==6):
-		
 		nodoID = hash(sys.argv[1])
 		iPnodo = sys.argv[2]
 		Pnodo = sys.argv[3]
 		nodoName = 'tcp://'+iPnodo+':' + Pnodo
 		sucesorName = 'tcp://'+sys.argv[4]+':'+sys.argv[5]
 		miID = {'id':nodoID,'name':nodoName}
-
-
-		fingertable = {}
-		
-
+		fingertable = {}# finger table..............
 		nodosConectados = {'Sucesor':{'id':'null','name': sucesorName} ,'Predecesor':{'id':'null','name':'null'}}
 		context = zmq.Context()
 		sock = context.socket(zmq.DEALER)
@@ -86,14 +114,11 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 		sockrouter = contextR.socket(zmq.ROUTER)
 		sockrouter.bind("tcp://*:"+Pnodo) 
 		sock.send_multipart([nodoID.encode('utf8'),msg.encode('utf8'),b'0'])
-		#print('Nodo  '+nodoID+' : activo')
 		poller = zmq.Poller()
 		poller.register(sys.stdin, zmq.POLLIN)
 		poller.register(sock, zmq.POLLIN)
 		poller.register(sockrouter,zmq.POLLIN)
 		
-
-
 		while(True) :
 			socks = dict(poller.poll())
 			#router--------------------------------
@@ -103,7 +128,7 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 				if(mensaje_json['operacion']=='iniciar'):
 					print(iniciando(nodosConectados))
 					if(iniciando(nodosConectados) and emptyPre(mensaje_json)):
-						print('holaaaaaaaa')
+						print('primer anillo')
 						mensaje_json['Predecesor'].update({'id':nodoID,'name':nodoName})
 						mensaje_json['Sucesor'].update({'id':nodoID})
 						mensaje_json.update({'operacion':'registrar'})
@@ -118,22 +143,18 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 						mensaje_json.update({'miID':miID})
 						msg = json.dumps(mensaje_json)
 						sockrouter.send_multipart([sender,sender,msg.encode('utf8'),b'0'])
-						print('enviado a:')
-						print(sender)
 				elif(mensaje_json['operacion']=='buscando'):
 					mensaje_json.update(nodosConectados)
 					mensaje_json.update({'operacion':'buscando'})
 					mensaje_json.update({'miID':miID})
 					msg = json.dumps(mensaje_json)
 					sockrouter.send_multipart([sender,sender,msg.encode('utf8'),b'0'])
-					print('enviado a:')
-					print(sender)
-					print('buscando')			
+					print('buscando posicion en anillo')			
 				elif(mensaje_json['operacion']=='registrar'):
 					del mensaje_json['operacion']
 					nodosConectados.update(mensaje_json)
 					fingertable = crearfingertable(fingertable,miID['id'],nodosConectados['Sucesor'])
-					print('registrar')
+					print('registrando primer anillo')
 					print('------------')
 				elif(mensaje_json['operacion']=='actSucesor'):
 					del mensaje_json['operacion']
@@ -146,22 +167,40 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 					print('actualize Predecesor')
 			#responder cliente:
 				elif(mensaje_json['operacion']=='upload'):
-					print(mensaje_json)
-					msg = {}
-					msg.update(miID)
-					msg.update({'operacion':'upload'})
-					msg = json.dumps(msg)
-					sockrouter.send_multipart([sender,sender,msg.encode('utf8'),b'0'])
+					if(canUpload(nodosConectados,miID,mensaje_json['parte'])):
+						msg = {}
+						msg.update(nodosConectados)
+						msg.update({'operacion':'verdadero'})
+						msg = json.dumps(msg)
+						sockrouter.send_multipart([sender,sender,msg.encode('utf8'),b'0'])
+					else:
+						msg = {}
+						msg.update(nodosConectados)
+						msg.update({'operacion':'falso'})
+						msg.update(miID)
+						msg = json.dumps(msg)
+						sockrouter.send_multipart([sender,sender,msg.encode('utf8'),b'0'])
+				elif(mensaje_json['operacion']=='subir'):
+					print('subiendo archivos')
+					cargarArchivo(mensaje_json['parte'],data)
+
 				elif(mensaje_json['operacion']=='download'):
-					print(mensaje_json)
-					msg = {}
-					msg.update(miID)
-					msg.update({'operacion':'download'})
-					msg = json.dumps(msg)
-					sockrouter.send_multipart([sender,sender,msg.encode('utf8'),b'0'])
-
-
-
+					if(canDownload(nodosConectados,miID,mensaje_json['parte'])):
+						msg = {}
+						msg.update(nodosConectados)
+						msg.update({'operacion':'verdadero'})
+						msg.update(miID)
+						msg = json.dumps(msg)
+						data = descargarArchivo(mensaje_json['parte'])
+						sockrouter.send_multipart([sender,sender,msg.encode('utf8'),data])
+					else:
+						msg = {}
+						msg.update(nodosConectados)
+						msg.update({'operacion':'falso'})
+						msg.update(miID)
+						msg = json.dumps(msg)
+						sockrouter.send_multipart([sender,sender,msg.encode('utf8'),b'0'])
+					
 			#fin router-------------------------------------------
 			elif sock in socks: #envia peticiones
 			#----------enganchar server------------------------------------
@@ -188,12 +227,10 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 						msg = json.dumps(msg)
 						msg2.update({'operacion':'actSucesor'})
 						msg2 = json.dumps(msg2)
-						#sock.disconnect(nodosConectados['Sucesor']['name'])#desconectando
-						
+						#-----------------------------------------
 						sock.disconnect(mensaje_json['miID']['name'])
 						sock.connect(nodosConectados['Sucesor']['name'])
 						sock.send_multipart([nodoID.encode('utf8'),msg.encode('utf8'),b'0'])
-						#sock.disconnect(nodosConectados['Sucesor']['name'])#desconectando
 						print(nodosConectados['Sucesor']['name'])
 						print(msg)
 						#------------------------------------------------------
@@ -206,7 +243,6 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 						print(msg2)
 						
 						fingertable.update(crearfingertable(fingertable,miID['id'],nodosConectados['Sucesor']))
-						#sock.disconnect(nodosConectados['Predecesor']['name'])#desconectando
 						#------------------------------------------------------
 
 					elif(nodoID > Predecesor and nodoID < NodoConect):
@@ -218,7 +254,6 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 						msg = json.dumps(msg)
 						msg2.update({'operacion':'actSucesor'})
 						msg2 = json.dumps(msg2)
-						
 						sock.disconnect(mensaje_json['miID']['name'])#desconectando
 						sock.connect(nodosConectados['Sucesor']['name'])
 						sock.send_multipart([nodoID.encode('utf8'),msg.encode('utf8'),b'0'])
@@ -226,19 +261,15 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 						sock.disconnect(nodosConectados['Sucesor']['name'])#desconectando
 						sock.connect(nodosConectados['Predecesor']['name'])
 						sock.send_multipart([nodoID.encode('utf8'),msg2.encode('utf8'),b'0'])
-						#sock.disconnect(nodosConectados['Predecesor']['name'])
 						fingertable.update(crearfingertable(fingertable,miID['id'],nodosConectados['Sucesor']))
 						print('estoy en medio')
 					else:
-						#print('estoy vuscando')
-						#print(mensaje_json['miID']['name'])
 						sock.disconnect(mensaje_json['miID']['name'])
 						sock.connect(mensaje_json['Sucesor']['name'])
 						nodosConectados.update({'operacion':'buscando'})
 						msg = json.dumps(nodosConectados)
-						print('siga buscando')
+						print('seguir buscando mi posicion en anillo')
 						sock.send_multipart([nodoID.encode('utf8'),msg.encode('utf8'),b'0'])
-						#sock.disconnect(mensaje_json['Sucesor']['name'])#desconectando
 			#fin------- enganchar server  ---------------------------------
 			elif sys.stdin.fileno() in socks:
 
