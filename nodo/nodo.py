@@ -255,7 +255,8 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 					print(nodosConectados['Sucesor'])
 					print('-----------------------------')
 				elif(command=='f'):
-					print(fingertable)
+					for x in fingertable:
+						print(x+':'+fingertable[x])
 	else:
 		print('se ejecuta con 6 argv')
 
