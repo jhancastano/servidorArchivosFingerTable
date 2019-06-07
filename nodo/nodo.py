@@ -34,6 +34,32 @@ def emptySuc(mensaje_json):
 	else:
 		return False
 
+def canUpload(nodosConectados,miID,id):
+	idsuc = nodosConectados['Sucesor']['id']
+	idpre = nodosConectados['Predecesor']['id']
+	if(miID<idpre and idpre>idsuc):
+		print('soy el primero')
+	if(miID>idpre and idpre>idsuc):
+		print('estoy en medio')
+	if(miID>idpre and idsuc>idpre):
+		print('soy el ultimo')
+	pass
+
+def actFingertable(fingertable,nodo):
+
+	pass
+
+def crearfingertable(fingertable,miID,sucesor):
+	nodoid = int(miID,16)
+	finger = {'nodo':hex(nodoid)[2:]}
+	nodoSucesor =int(sucesor,16)
+	for x in range(0,159):
+		nodo2 = nodoid + 2**x
+		if(nodo2<=nodoSucesor):
+			finger.update({'nodo'+str(x):sucesor})
+	return finger
+	pass
+
 def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto sucesor
 	if(len(sys.argv)==6):
 		
@@ -45,7 +71,8 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 		miID = {'id':nodoID,'name':nodoName}
 
 
-		listanodos = []
+		fingertable = {}
+		
 
 		nodosConectados = {'Sucesor':{'id':'null','name': sucesorName} ,'Predecesor':{'id':'null','name':'null'}}
 		context = zmq.Context()
@@ -63,6 +90,9 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 		poller.register(sys.stdin, zmq.POLLIN)
 		poller.register(sock, zmq.POLLIN)
 		poller.register(sockrouter,zmq.POLLIN)
+		
+
+
 		while(True) :
 			socks = dict(poller.poll())
 			#router--------------------------------
@@ -79,6 +109,7 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 						msg = json.dumps(mensaje_json)
 						print(msg)
 						sock.send_multipart([sender,msg.encode('utf8'),b'0'])
+						
 					elif(emptySuc(mensaje_json)):
 						print('no tengo sucesor')					
 						mensaje_json.update(nodosConectados)
@@ -100,6 +131,7 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 				elif(mensaje_json['operacion']=='registrar'):
 					del mensaje_json['operacion']
 					nodosConectados.update(mensaje_json)
+					fingertable = crearfingertable(fingertable,miID['id'],nodosConectados['Sucesor']['id'])
 					print('registrar')
 					print('------------')
 				elif(mensaje_json['operacion']=='actSucesor'):
@@ -208,19 +240,22 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 
 				print("?")
 				command = input()
-				os.system('clear')
-				print('-----------------------------')
-				print('nodo id')
-				print(miID)
-				print('-----------------------------')
-				print('-----------------------------')
-				print('nodo Predecesor')
-				print(nodosConectados['Predecesor'])
-				print('-----------------------------')
-				print('nodo sucesor')
-				print(nodosConectados['Sucesor'])
-				print('-----------------------------')
 
+				if(command=='n'):
+					os.system('clear')
+					print('-----------------------------')
+					print('nodo id')
+					print(miID)
+					print('-----------------------------')
+					print('-----------------------------')
+					print('nodo Predecesor')
+					print(nodosConectados['Predecesor'])
+					print('-----------------------------')
+					print('nodo sucesor')
+					print(nodosConectados['Sucesor'])
+					print('-----------------------------')
+				elif(command=='f'):
+					print(fingertable)
 	else:
 		print('se ejecuta con 6 argv')
 
