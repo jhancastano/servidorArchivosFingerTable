@@ -46,11 +46,11 @@ def emptySuc(mensaje_json):
 def positionNodo(nodosConectados,miID):
 	idsuc = nodosConectados['Sucesor']['id']
 	idpre = nodosConectados['Predecesor']['id']
-	if(miID['id']<idpre and idpre>=idsuc):
+	if(miID['id']<=idpre and idpre>=idsuc):
 		return 1#primero nodo
-	if(miID['id']>idpre and idpre>idsuc):
+	if(miID['id']>=idpre and idpre>=idsuc):
 		return 2#nodo en medio
-	if(miID['id']>idpre and idsuc>idpre):
+	if(miID['id']>=idpre and idsuc>=idpre):
 		return 3# ultimo nodo
 
 def canUpload(nodosConectados,miID,idparte):
@@ -109,6 +109,7 @@ def saltarfinger(fingertable,idparte):
 
 def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto sucesor
 	if(len(sys.argv)==6):
+		listaARchivos = {}
 		nodoID = hash(sys.argv[1])
 		iPnodo = sys.argv[2]
 		Pnodo = sys.argv[3]
@@ -173,6 +174,12 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 					del mensaje_json['operacion']
 					nodosConectados['Sucesor'].update(mensaje_json)
 					fingertable.update(crearfingertable(fingertable,miID['id'],nodosConectados['Sucesor']))
+
+					#op = 'subir'
+					#for x in listaARchivos:
+						#print(x)
+						#sockrouter.send_multipart([sender,sender,msg.encode('utf8'),data])
+
 					print('actualize Sucesor')
 				elif(mensaje_json['operacion']=='actPredecesor'):
 					del mensaje_json['operacion']
@@ -203,6 +210,7 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 				elif(mensaje_json['operacion']=='subir'):
 					print('subiendo archivos')
 					cargarArchivo(mensaje_json['parte'],data)
+					listaARchivos.update({mensaje_json['parte']:'u'})
 
 				elif(mensaje_json['operacion']=='download'):
 					if(canDownload(nodosConectados,miID,mensaje_json['parte'])):
@@ -240,7 +248,7 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 					Sucesor = mensaje_json['Sucesor']['id']
 					Predecesor = mensaje_json['Predecesor']['id']
 					NodoConect = mensaje_json['miID']['id']
-					if(nodoID>Sucesor and nodoID>Predecesor and nodoID>NodoConect and NodoConect > Sucesor): #para comparacion de hash quitar enteros
+					if(nodoID>=Sucesor and nodoID>=Predecesor and nodoID>=NodoConect and NodoConect >= Sucesor): #para comparacion de hash quitar enteros
 						print('soy el ultimo')
 						nodosConectados['Sucesor'].update(mensaje_json['Sucesor'])
 						nodosConectados['Predecesor'].update(mensaje_json['miID'])
@@ -260,18 +268,15 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 						print(nodosConectados['Sucesor']['name'])
 						print(msg)
 						#------------------------------------------------------
-						
 						sock.disconnect(mensaje_json['Sucesor']['name'])
 						sock.connect(nodosConectados['Predecesor']['name'])
 						sock.send_multipart([nodoID.encode('utf8'),msg2.encode('utf8'),b'0'])
 						print('--------------------')
 						print(nodosConectados['Predecesor']['name'])
 						print(msg2)
-						
 						fingertable.update(crearfingertable(fingertable,miID['id'],nodosConectados['Sucesor']))
 						#------------------------------------------------------
-
-					elif(nodoID > Predecesor and nodoID < NodoConect):
+					elif(nodoID >= Predecesor and nodoID <= NodoConect):
 						nodosConectados['Sucesor'].update(mensaje_json['miID'])
 						nodosConectados['Predecesor'].update(mensaje_json['Predecesor'])
 						msg = miID
@@ -289,6 +294,31 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 						sock.send_multipart([nodoID.encode('utf8'),msg2.encode('utf8'),b'0'])
 						fingertable.update(crearfingertable(fingertable,miID['id'],nodosConectados['Sucesor']))
 						print('estoy en medio')
+					elif(nodoID<=Sucesor and nodoID<=Predecesor and nodoID<=NodoConect and NodoConect <= Predecesor):
+						print('soy el primero')
+						nodosConectados['Sucesor'].update(mensaje_json['miID'])
+						nodosConectados['Predecesor'].update(mensaje_json['Predecesor'])
+						print(nodosConectados)
+						msg = {}
+						msg2 = {}
+						msg.update(miID)
+						msg2.update(miID)
+						msg.update({'operacion':'actPredecesor'})
+						msg = json.dumps(msg)
+						msg2.update({'operacion':'actSucesor'})
+						msg2 = json.dumps(msg2)
+						#-----------------------------------------
+						sock.send_multipart([nodoID.encode('utf8'),msg.encode('utf8'),b'0'])
+						print(nodosConectados['Sucesor']['name'])
+						print(msg)
+						#------------------------------------------------------
+						sock.disconnect(mensaje_json['miID']['name'])
+						sock.connect(nodosConectados['Predecesor']['name'])
+						sock.send_multipart([nodoID.encode('utf8'),msg2.encode('utf8'),b'0'])
+						print('--------------------')
+						print(nodosConectados['Predecesor']['name'])
+						print(msg2)
+						fingertable.update(crearfingertable(fingertable,miID['id'],nodosConectados['Sucesor']))
 					else:
 						sock.disconnect(mensaje_json['miID']['name'])
 						sock.connect(mensaje_json['Sucesor']['name'])
@@ -324,6 +354,8 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 					fingertable.update(crearfingertable(fingertable,miID['id'],nodosConectados['Sucesor']))
 				elif(command=='s'):
 					print(saltarfinger(fingertable,'1'))
+				elif(command=='ls'):
+					print(listaARchivos)
 	else:
 		print('se ejecuta con 6 argv')
 
